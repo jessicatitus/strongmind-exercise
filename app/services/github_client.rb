@@ -25,6 +25,7 @@ class GithubClient
   rescue Faraday::Error => e
     return [nil, nil] if e.response&.dig(:status) == 304
     raise RateLimitedError, "Rate limited" if e.response&.dig(:status) == 429
+    raise RateLimitedError, "Forbidden - rate limit likely exceeded" if e.response&.dig(:status) == 403
     raise ApiError, "GitHub API error: #{e.message}"
   end
 
@@ -35,6 +36,10 @@ class GithubClient
   rescue Faraday::TooManyRequestsError => e
     retry_after = e.response[:headers]["retry-after"]&.to_i || 60
     raise RateLimitedError, "Rate limited. Retry after #{retry_after}s"
+  rescue Faraday::ForbiddenError => e
+    raise RateLimitedError, "Forbidden (403) - rate limit likely exceeded for #{url}"
+  rescue Faraday::ServerError => e
+    raise ApiError, "GitHub API error: #{e.message}"
   end
 
   private
