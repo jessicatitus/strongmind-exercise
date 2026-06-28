@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: github_ingestion
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: github_ingestion_development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U github_ingestion -d github_ingestion_development"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    command: bundle exec rails server -b 0.0.0.0
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://github_ingestion:password@db/github_ingestion_development
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  sidekiq:
+    build: .
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: postgres://github_ingestion:password@db/github_ingestion_development
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ingest:
+    build: .
+    command: bundle exec rails github:ingest
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: postgres://github_ingestion:password@db/github_ingestion_development
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  test:
+    build: .
+    command: bundle exec rspec
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: postgres://github_ingestion:password@db/github_ingestion_development
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: test
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
