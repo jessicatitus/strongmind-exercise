@@ -140,3 +140,7 @@ See DESIGN_BRIEF.md for full architecture, tradeoffs, and decisions.
 ### Note on rate limits
 
 This service uses GitHub's unauthenticated API which allows 60 requests per hour per IP address. If you see 403 Forbidden errors in the Sidekiq logs during enrichment, your IP has likely hit the rate limit from a previous run. Sidekiq will automatically retry with exponential backoff. You can also wait until the top of the next hour for the limit to reset, then run ingestion again.
+
+### Rate limits and the unauthenticated GitHub API
+
+This service uses GitHub's unauthenticated API, which allows 60 requests per hour per IP address. During enrichment, Sidekiq makes 2 additional API calls per event (actor + repo). If you have run ingestion previously on the same network, you may see 403 Forbidden errors in the Sidekiq logs — this is expected behavior, not a bug. Sidekiq will automatically retry those jobs with exponential backoff (minimum 60 seconds, growing with each retry). The rate limit resets at the top of each hour.
