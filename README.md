@@ -137,9 +137,7 @@ See DESIGN_BRIEF.md for full architecture, tradeoffs, and decisions.
     lib/tasks/github.rake                 - rails github:ingest entry point
     spec/services/ingestion_spec.rb       - Unit tests for core services
 
-### Note on rate limits
-
-This service uses GitHub's unauthenticated API which allows 60 requests per hour per IP address. If you see 403 Forbidden errors in the Sidekiq logs during enrichment, your IP has likely hit the rate limit from a previous run. Sidekiq will automatically retry with exponential backoff. You can also wait until the top of the next hour for the limit to reset, then run ingestion again.
+---
 
 ### Rate limits and the unauthenticated GitHub API
 
